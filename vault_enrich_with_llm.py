@@ -284,6 +284,7 @@ def enrich_manifest_with_llm(vault_root: Path, manifest: Dict[str, Dict]) -> Dic
 
     updated = 0
     total = len(manifest)
+    print(f"Starting enrichment over {total} notes...")
 
     for i, (rel_path, meta) in enumerate(manifest.items(), start=1):
         title = meta.get("title")
@@ -294,11 +295,13 @@ def enrich_manifest_with_llm(vault_root: Path, manifest: Dict[str, Dict]) -> Dic
         if not isinstance(tags, list):
             tags = []
 
-        snippet = read_snippet(vault_root, rel_path)
+        snippet = read_snippet(vault_root, rel_path)        
 
+        print(f"[{i}/{total}] Enriching: {rel_path} (title='{title}')...")
         payload = build_llm_payload(title, tags, snippet, all_titles)
         result = call_llm(payload)
         if result is None:
+            print(f"    -> Skipped (LLM call failed or invalid JSON).")
             continue
 
         extra_tags = sanitize_tags(result.get("extra_tags", []))
@@ -314,6 +317,12 @@ def enrich_manifest_with_llm(vault_root: Path, manifest: Dict[str, Dict]) -> Dic
 
         manifest[rel_path] = meta
         updated += 1
+        print(
+            f"    -> Updated "
+            f"extra_tags={len(extra_tags)}, "
+            f"links={len(link_to_titles)}, "
+            f"concept_nodes={len(concept_nodes)}"
+        )
 
         if i % 20 == 0:
             print(f"Processed {i}/{total} files (updated {updated})...")
